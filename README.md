@@ -110,11 +110,58 @@ By default, dotfiles and common noise directories (`.git`, `node_modules`,
 `vendor`, `__pycache__`, `.idea`, `.vscode`) are skipped. Pass `--all` to
 include them.
 
+## Google Drive
+
+```
+falafal drive <folder-name> [flags]
+falafal drive --id <folder-id> [flags]
+
+  --id string          Drive folder ID (skips name search)
+  --format string      output format: term|text|html|json (default "term")
+  --out string         write report to file instead of stdout
+  --top int            number of largest files to show in stats (default 10)
+```
+
+```bash
+# Scan a folder by name (searches your whole Drive)
+falafal drive "Research Data"
+
+# Scan your entire My Drive
+falafal drive
+
+# Scan by folder ID (use this if the name matches more than one folder)
+falafal drive --id 1AbCdEfGhIjKlMnOpQrStUvWxYz
+
+# HTML report of a Drive folder
+falafal drive "Research Data" --format html --out drive-report.html
+```
+
+The first time you run `falafal drive`, it opens your browser to sign in to
+Google and asks for **read-only** access to your Drive. After that it caches
+a token locally so you won't need to sign in again on that machine.
+
+**Note:** this app is currently in Google's "Testing" publishing mode, which
+means only Google accounts the app owner has explicitly allowlisted can sign
+in (a hard cap of 100 accounts). If you get an "access blocked" error when
+signing in, ask whoever set this up to add your Google email to the test
+users list in their Google Cloud Console project.
+
+Duplicate detection on Drive works differently for two kinds of files:
+- **Regular files** (PDFs, images, zips, etc.) are compared by Drive's own
+  MD5 checksum of their content — same guarantee as local scanning.
+- **Native Google formats** (Docs, Sheets, Slides, Forms, Drawings) have no
+  binary content to hash, so they're compared by name + reported size
+  instead. This is a looser signal than a real hash, so treat `[DUP]` tags
+  on these as "worth checking," not certain.
+
+`--clean` (interactive duplicate cleanup) is local-only for now; Drive
+scanning is read-only.
+
 ## How duplicate detection works
 
-Every file's content is hashed with SHA-256. Files sharing a hash are grouped
-and tagged `[DUP:Dn]` in the tree, with total wasted space (all but one copy
-per group) shown in the summary.
+Every local file's content is hashed with SHA-256. Files sharing a hash are
+grouped and tagged `[DUP:Dn]` in the tree, with total wasted space (all but
+one copy per group) shown in the summary.
 
 ## Building from source
 
@@ -134,4 +181,6 @@ Output lands in `dist/`.
 
 ## Roadmap
 
-- Google Drive folder scanning (reuses the same tree model and reports)
+- `--clean` support for Google Drive (move duplicates to Drive Trash)
+- Move the Google OAuth app out of Testing mode so anyone can sign in
+  without being allowlisted

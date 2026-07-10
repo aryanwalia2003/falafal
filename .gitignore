@@ -1,3 +1,8 @@
 /falafal
 /falafal.exe
 /dist/
+
+# Local credentials, never committed
+.env
+.env.*
+*.env

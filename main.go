@@ -1,12 +1,15 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"os"
 	"strings"
 
 	"github.com/aryanwalia2003/falafal/internal/cleanup"
+	"github.com/aryanwalia2003/falafal/internal/drive"
+	"github.com/aryanwalia2003/falafal/internal/model"
 	"github.com/aryanwalia2003/falafal/internal/report"
 	"github.com/aryanwalia2003/falafal/internal/scanner"
 )
@@ -15,7 +18,14 @@ import (
 var version = "dev"
 
 func main() {
-	if err := run(os.Args[1:]); err != nil {
+	args := os.Args[1:]
+	var err error
+	if len(args) > 0 && args[0] == "drive" {
+		err = runDrive(args[1:])
+	} else {
+		err = run(args)
+	}
+	if err != nil {
 		fmt.Fprintln(os.Stderr, "falafal:", err)
 		os.Exit(1)
 	}
@@ -76,31 +86,8 @@ func run(args []string) error {
 		return fmt.Errorf("scanning: %w", err)
 	}
 
-	var output string
-	switch *format {
-	case "term":
-		output = report.RenderText(tree, true)
-	case "text":
-		output = report.RenderText(tree, false)
-	case "html":
-		output = report.RenderHTML(tree)
-	case "json":
-		b, err := report.RenderJSON(tree)
-		if err != nil {
-			return fmt.Errorf("rendering json: %w", err)
-		}
-		output = string(b)
-	default:
-		return fmt.Errorf("unknown format %q (want term|text|html|json)", *format)
-	}
-
-	if *out != "" {
-		if err := os.WriteFile(*out, []byte(output), 0o644); err != nil {
-			return fmt.Errorf("writing %s: %w", *out, err)
-		}
-		fmt.Printf("Report written to %s\n", *out)
-	} else {
-		fmt.Println(output)
+	if err := writeReport(tree, *format, *out); err != nil {
+		return err
 	}
 
 	if *clean {
@@ -116,5 +103,55 @@ func run(args []string) error {
 			res.GroupsHandled, res.FilesMoved, cleanup.TrashDirName, report.HumanSize(res.BytesFreed))
 	}
 
+	return nil
+}
+
+func runDrive(args []string) error {
+	fs := flag.NewFlagSet("falafal drive", flag.ContinueOnError)
+	id := fs.String("id", "", "Drive folder ID (skips name search)")
+	format := fs.String("format", "term", "output format: term|text|html|json")
+	out := fs.String("out", "", "write report to file instead of stdout")
+	topN := fs.Int("top", 10, "number of largest files to show in stats")
+
+	if err := fs.Parse(reorderArgs(args)); err != nil {
+		return err
+	}
+	target := fs.Arg(0) // empty target means "My Drive" root
+
+	tree, err := drive.Scan(context.Background(), target, drive.Options{ExplicitID: *id, TopN: *topN})
+	if err != nil {
+		return fmt.Errorf("scanning drive: %w", err)
+	}
+
+	return writeReport(tree, *format, *out)
+}
+
+func writeReport(tree *model.Tree, format, out string) error {
+	var output string
+	switch format {
+	case "term":
+		output = report.RenderText(tree, true)
+	case "text":
+		output = report.RenderText(tree, false)
+	case "html":
+		output = report.RenderHTML(tree)
+	case "json":
+		b, err := report.RenderJSON(tree)
+		if err != nil {
+			return fmt.Errorf("rendering json: %w", err)
+		}
+		output = string(b)
+	default:
+		return fmt.Errorf("unknown format %q (want term|text|html|json)", format)
+	}
+
+	if out != "" {
+		if err := os.WriteFile(out, []byte(output), 0o644); err != nil {
+			return fmt.Errorf("writing %s: %w", out, err)
+		}
+		fmt.Printf("Report written to %s\n", out)
+	} else {
+		fmt.Println(output)
+	}
 	return nil
 }

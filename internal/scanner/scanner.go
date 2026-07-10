@@ -43,11 +43,8 @@ func Scan(root string, opts Options) (*model.Tree, error) {
 		return nil, fmt.Errorf("%s is not a directory", absRoot)
 	}
 
-	hashToNodes := make(map[string][]*model.Node)
-	extToStat := make(map[string]*model.ExtStat)
 	var allFiles []*model.Node
-	var totalFiles, totalDirs int
-	var totalSize int64
+	var totalDirs int
 
 	rootNode := &model.Node{
 		Name:    filepath.Base(absRoot),
@@ -118,21 +115,7 @@ func Scan(root string, opts Options) (*model.Tree, error) {
 			dirNode.Children = append(dirNode.Children, fileNode)
 			dirSize += fi.Size()
 
-			totalFiles++
 			allFiles = append(allFiles, fileNode)
-			hashToNodes[hash] = append(hashToNodes[hash], fileNode)
-
-			key := ext
-			if key == "" {
-				key = "(no extension)"
-			}
-			st, ok := extToStat[key]
-			if !ok {
-				st = &model.ExtStat{Ext: key}
-				extToStat[key] = st
-			}
-			st.Count++
-			st.Size += fi.Size()
 		}
 
 		dirNode.Size = dirSize
@@ -142,58 +125,11 @@ func Scan(root string, opts Options) (*model.Tree, error) {
 	if err := walk(absRoot, rootNode); err != nil {
 		return nil, err
 	}
-	totalSize = rootNode.Size
 
-	// Duplicate groups: assign a short group ID to each file sharing a hash with others.
-	var dupGroups []model.DupGroupInfo
-	var wasted int64
-	groupIdx := 0
-	for hash, nodes := range hashToNodes {
-		if len(nodes) < 2 {
-			continue
-		}
-		groupIdx++
-		groupID := fmt.Sprintf("D%d", groupIdx)
-		for _, n := range nodes {
-			n.DupGroup = groupID
-		}
-		dupGroups = append(dupGroups, model.DupGroupInfo{Hash: hash, Nodes: nodes})
-		sort.Slice(nodes, func(i, j int) bool { return nodes[i].Path < nodes[j].Path })
-		wasted += nodes[0].Size * int64(len(nodes)-1)
-	}
-	sort.Slice(dupGroups, func(i, j int) bool {
-		return dupGroups[i].Nodes[0].Path < dupGroups[j].Nodes[0].Path
-	})
-
-	var extStats []model.ExtStat
-	for _, st := range extToStat {
-		extStats = append(extStats, *st)
-	}
-	sort.Slice(extStats, func(i, j int) bool { return extStats[i].Size > extStats[j].Size })
-
-	sort.Slice(allFiles, func(i, j int) bool { return allFiles[i].Size > allFiles[j].Size })
-	topN := opts.TopN
-	if topN <= 0 {
-		topN = 10
-	}
-	if topN > len(allFiles) {
-		topN = len(allFiles)
-	}
-	largest := append([]*model.Node{}, allFiles[:topN]...)
-
-	tree := &model.Tree{
-		Root: rootNode,
-		Stats: model.Stats{
-			TotalFiles:   totalFiles,
-			TotalDirs:    totalDirs,
-			TotalSize:    totalSize,
-			ByExt:        extStats,
-			LargestFiles: largest,
-			DupGroups:    dupGroups,
-			WastedSize:   wasted,
-		},
-	}
-	return tree, nil
+	return &model.Tree{
+		Root:  rootNode,
+		Stats: model.ComputeStats(rootNode, allFiles, totalDirs, opts.TopN),
+	}, nil
 }
 
 func hashFile(path string) (string, error) {

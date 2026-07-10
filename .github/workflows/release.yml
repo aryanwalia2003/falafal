@@ -18,7 +18,10 @@ jobs:
           go-version: "1.26"
       - run: go test ./...
       - name: Build release archives
-        run: make release VERSION=${GITHUB_REF_NAME}
+        env:
+          DRIVE_CLIENT_ID: ${{ secrets.DRIVE_CLIENT_ID }}
+          DRIVE_CLIENT_SECRET: ${{ secrets.DRIVE_CLIENT_SECRET }}
+        run: make release VERSION=${GITHUB_REF_NAME} DRIVE_CLIENT_ID="$DRIVE_CLIENT_ID" DRIVE_CLIENT_SECRET="$DRIVE_CLIENT_SECRET"
       - name: Publish GitHub Release
         uses: softprops/action-gh-release@v2
         with:
