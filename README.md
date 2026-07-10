@@ -8,10 +8,47 @@ folder.
 
 ## Install
 
-### Linux
+### Windows
 
-Download the latest `linux_amd64` (or `linux_arm64`) tarball from the
-[releases page](https://github.com/aryanwalia2003/falafal/releases), then:
+Open **PowerShell** and run:
+
+```powershell
+irm https://raw.githubusercontent.com/aryanwalia2003/falafal/main/install.ps1 | iex
+```
+
+This downloads the latest `falafal.exe`, puts it in
+`%LOCALAPPDATA%\Programs\falafal`, and adds that folder to your PATH — no
+manual zip extraction or Environment Variables dialog needed. **Close and
+reopen your terminal**, then run `falafal --version` to confirm.
+
+<details>
+<summary>Manual install (if the script doesn't work, e.g. restricted lab computers)</summary>
+
+1. Download `falafal_*_windows_amd64.zip` from the
+   [releases page](https://github.com/aryanwalia2003/falafal/releases).
+2. Extract it, then move `falafal.exe` somewhere on your `PATH`, or add its
+   folder to PATH via Settings → System → About → Advanced system settings →
+   Environment Variables.
+3. Open a new PowerShell/cmd window and run `falafal --version`.
+
+</details>
+
+### Linux / macOS
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/aryanwalia2003/falafal/main/install.sh | bash
+```
+
+This downloads the right binary for your OS/architecture, installs it to
+`~/.local/bin`, and adds that to your PATH if it isn't already there. Restart
+your terminal (or `source` your shell rc file as instructed), then run
+`falafal --version`.
+
+<details>
+<summary>Manual install</summary>
+
+Download the matching tarball from the
+[releases page](https://github.com/aryanwalia2003/falafal/releases):
 
 ```bash
 tar -xzf falafal_*_linux_amd64.tar.gz -C /tmp
@@ -19,26 +56,11 @@ sudo mv /tmp/falafal_*_linux_amd64/falafal /usr/local/bin/falafal
 falafal --version
 ```
 
-Or, with Go installed:
+</details>
+
+### With Go installed (any OS)
 
 ```bash
-go install github.com/aryanwalia2003/falafal@latest
-```
-
-### Windows
-
-1. Download `falafal_*_windows_amd64.zip` from the
-   [releases page](https://github.com/aryanwalia2003/falafal/releases).
-2. Extract it, then move `falafal.exe` somewhere on your `PATH` (e.g.
-   `C:\Windows\System32` or a custom folder added to `PATH`).
-3. Open PowerShell or cmd and run:
-   ```powershell
-   falafal --version
-   ```
-
-Or, with Go installed:
-
-```powershell
 go install github.com/aryanwalia2003/falafal@latest
 ```
 
