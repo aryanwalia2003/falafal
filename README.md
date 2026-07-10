@@ -24,7 +24,7 @@ reopen your terminal**, then run `falafal --version` to confirm.
 <details>
 <summary>Manual install (if the script doesn't work, e.g. restricted lab computers)</summary>
 
-1. Download `falafal_*_windows_amd64.zip` from the
+1. Download `falafal_windows_amd64.zip` from the
    [releases page](https://github.com/aryanwalia2003/falafal/releases).
 2. Extract it, then move `falafal.exe` somewhere on your `PATH`, or add its
    folder to PATH via Settings → System → About → Advanced system settings →
@@ -51,8 +51,8 @@ Download the matching tarball from the
 [releases page](https://github.com/aryanwalia2003/falafal/releases):
 
 ```bash
-tar -xzf falafal_*_linux_amd64.tar.gz -C /tmp
-sudo mv /tmp/falafal_*_linux_amd64/falafal /usr/local/bin/falafal
+tar -xzf falafal_linux_amd64.tar.gz -C /tmp
+sudo mv /tmp/falafal_linux_amd64/falafal /usr/local/bin/falafal
 falafal --version
 ```
 
@@ -63,6 +63,16 @@ falafal --version
 ```bash
 go install github.com/aryanwalia2003/falafal@latest
 ```
+
+### Troubleshooting: "No such host is known" / network errors
+
+Some campus, lab, or corporate networks block specific GitHub subdomains
+(most commonly `api.github.com`) while allowing `github.com` itself. The
+installers above only ever talk to `github.com`'s release-download redirect,
+not the API, so this shouldn't happen — but if it still does:
+- Try a different network (e.g. a phone hotspot) to confirm it's a network
+  policy issue, not something wrong with your machine.
+- Fall back to the manual install steps above, which only need a browser.
 
 ## Usage
 

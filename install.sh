@@ -26,20 +26,15 @@ case "$arch" in
   *) echo "Unsupported architecture: $arch" >&2; exit 1 ;;
 esac
 
-echo "Fetching latest falafal release info..."
-release_json=$(curl -fsSL "https://api.github.com/repos/$REPO/releases/latest")
-asset_url=$(echo "$release_json" | grep -o "\"browser_download_url\": *\"[^\"]*${platform}_${goarch}\.tar\.gz\"" | grep -o 'https://[^"]*')
-tag=$(echo "$release_json" | grep -o '"tag_name": *"[^"]*"' | head -1 | cut -d'"' -f4)
-
-if [ -z "$asset_url" ]; then
-  echo "Could not find a ${platform}_${goarch} release asset." >&2
-  exit 1
-fi
+# github.com/<repo>/releases/latest/download/<asset> redirects straight to the
+# right file without ever touching api.github.com, which some campus/lab
+# networks block even though github.com and the download CDN work fine.
+asset_url="https://github.com/$REPO/releases/latest/download/falafal_${platform}_${goarch}.tar.gz"
 
 tmpdir=$(mktemp -d)
 trap 'rm -rf "$tmpdir"' EXIT
 
-echo "Downloading $tag for ${platform}_${goarch}..."
+echo "Downloading falafal for ${platform}_${goarch}..."
 curl -fsSL "$asset_url" -o "$tmpdir/falafal.tar.gz"
 tar -xzf "$tmpdir/falafal.tar.gz" -C "$tmpdir"
 
@@ -48,7 +43,7 @@ binary=$(find "$tmpdir" -type f -name falafal | head -1)
 cp "$binary" "$INSTALL_DIR/falafal"
 chmod +x "$INSTALL_DIR/falafal"
 
-echo "falafal $tag installed to $INSTALL_DIR/falafal"
+echo "falafal installed to $INSTALL_DIR/falafal"
 
 case ":$PATH:" in
   *":$INSTALL_DIR:"*)

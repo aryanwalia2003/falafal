@@ -11,18 +11,16 @@ Usage (PowerShell):
 $ErrorActionPreference = "Stop"
 
 $repo = "aryanwalia2003/falafal"
+$assetName = "falafal_windows_amd64.zip"
+# github.com/<repo>/releases/latest/download/<asset> redirects straight to the
+# right file without ever touching api.github.com, which some campus/lab
+# networks block even though github.com and the download CDN work fine.
+$downloadUrl = "https://github.com/$repo/releases/latest/download/$assetName"
 $installDir = Join-Path $env:LOCALAPPDATA "Programs\falafal"
 
-Write-Host "Fetching latest falafal release info..."
-$release = Invoke-RestMethod -Uri "https://api.github.com/repos/$repo/releases/latest"
-$asset = $release.assets | Where-Object { $_.name -like "*_windows_amd64.zip" } | Select-Object -First 1
-if (-not $asset) {
-    throw "Could not find a windows_amd64 asset in the latest release."
-}
-
-$zipPath = Join-Path $env:TEMP $asset.name
-Write-Host "Downloading $($asset.name) ($($release.tag_name))..."
-Invoke-WebRequest -Uri $asset.browser_download_url -OutFile $zipPath
+$zipPath = Join-Path $env:TEMP $assetName
+Write-Host "Downloading $assetName..."
+Invoke-WebRequest -Uri $downloadUrl -OutFile $zipPath
 
 Write-Host "Installing to $installDir..."
 if (Test-Path $installDir) {
@@ -48,5 +46,5 @@ if ($userPath -notlike "*$installDir*") {
 }
 
 Write-Host ""
-Write-Host "falafal $($release.tag_name) installed to $installDir"
+Write-Host "falafal installed to $installDir"
 Write-Host "Open a NEW terminal window, then run: falafal --version"
