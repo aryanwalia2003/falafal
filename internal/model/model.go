@@ -3,6 +3,7 @@ package model
 import (
 	"fmt"
 	"sort"
+	"strings"
 	"time"
 )
 
@@ -118,4 +119,98 @@ func ComputeStats(root *Node, allFiles []*Node, totalDirs, topN int) Stats {
 		DupGroups:    dupGroups,
 		WastedSize:   wasted,
 	}
+}
+
+// AllFiles returns every non-directory node in the tree rooted at root, in
+// tree order. Used by commands that need the full file list rather than the
+// capped/aggregated view in Stats (e.g. `find`, `index`, `search`).
+func AllFiles(root *Node) []*Node {
+	var out []*Node
+	var walk func(n *Node)
+	walk = func(n *Node) {
+		for _, c := range n.Children {
+			if c.IsDir {
+				walk(c)
+				continue
+			}
+			out = append(out, c)
+		}
+	}
+	walk(root)
+	return out
+}
+
+// Filter describes criteria for narrowing a file list down to files of
+// interest. A zero-value Filter matches every file.
+type Filter struct {
+	Exts         []string // normalized (lowercase, leading dot); empty = any extension
+	NameContains string   // case-insensitive substring match on file name; empty = any
+	MinSize      int64    // bytes; 0 = no minimum
+	MaxSize      int64    // bytes; 0 = no maximum
+}
+
+// ApplyFilter returns the subset of files matching f.
+func ApplyFilter(files []*Node, f Filter) []*Node {
+	var out []*Node
+	for _, n := range files {
+		if len(f.Exts) > 0 && !containsExt(f.Exts, n.Ext) {
+			continue
+		}
+		if f.NameContains != "" && !strings.Contains(strings.ToLower(n.Name), strings.ToLower(f.NameContains)) {
+			continue
+		}
+		if f.MinSize > 0 && n.Size < f.MinSize {
+			continue
+		}
+		if f.MaxSize > 0 && n.Size > f.MaxSize {
+			continue
+		}
+		out = append(out, n)
+	}
+	return out
+}
+
+func containsExt(exts []string, ext string) bool {
+	for _, e := range exts {
+		if e == ext {
+			return true
+		}
+	}
+	return false
+}
+
+// ExtGroup is a set of files sharing the same extension.
+type ExtGroup struct {
+	Ext   string
+	Files []*Node
+	Count int
+	Size  int64
+}
+
+// GroupByExt buckets files by extension, sorted by group size descending;
+// within each group, files are sorted by path.
+func GroupByExt(files []*Node) []ExtGroup {
+	byExt := make(map[string]*ExtGroup)
+	for _, n := range files {
+		key := n.Ext
+		if key == "" {
+			key = "(no extension)"
+		}
+		g, ok := byExt[key]
+		if !ok {
+			g = &ExtGroup{Ext: key}
+			byExt[key] = g
+		}
+		g.Files = append(g.Files, n)
+		g.Count++
+		g.Size += n.Size
+	}
+
+	var groups []ExtGroup
+	for _, g := range byExt {
+		sort.Slice(g.Files, func(i, j int) bool { return g.Files[i].Path < g.Files[j].Path })
+		groups = append(groups, *g)
+	}
+	sort.Slice(groups, func(i, j int) bool { return groups[i].Size > groups[j].Size })
+	return groups
 }

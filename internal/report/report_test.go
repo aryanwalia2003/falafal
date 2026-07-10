@@ -54,8 +54,8 @@ func TestRenderHTML(t *testing.T) {
 
 func TestHumanSize(t *testing.T) {
 	cases := map[int64]string{
-		500:            "500 B",
-		2048:           "2.0 KiB",
+		500:             "500 B",
+		2048:            "2.0 KiB",
 		5 * 1024 * 1024: "5.0 MiB",
 	}
 	for size, want := range cases {
