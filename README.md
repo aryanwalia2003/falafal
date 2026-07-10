@@ -1,10 +1,12 @@
 # falafal
 
-A command-line tool that scans a folder and shows a tree of every file —
-full name, type, size — and flags duplicate files by hashing their content.
-Exports to colored terminal output, plain text, a self-contained HTML report,
-or JSON, and can interactively move duplicate copies to a reversible trash
-folder.
+A command-line tool for making sense of a folder full of tons and tons of
+data. It scans a folder and shows a tree of every file — full name, type,
+size — flags duplicate files by hashing their content, lets you pull out
+"every PDF" or "everything over 500MB" without reading the whole tree, and
+lets you search for a file by name across huge trees. Exports to colored
+terminal output, plain text, a self-contained HTML report, or JSON, and can
+interactively move duplicate copies to a reversible trash folder.
 
 ## Install
 
@@ -109,6 +111,134 @@ falafal ~/Downloads --clean
 By default, dotfiles and common noise directories (`.git`, `node_modules`,
 `vendor`, `__pycache__`, `.idea`, `.vscode`) are skipped. Pass `--all` to
 include them.
+
+## Finding files in tons of data
+
+Five commands help when you're lost in a huge folder and don't want the
+full tree.
+
+### `falafal find` — pull out files by type/size/name
+
+```
+falafal find <path> [flags]
+
+  --ext string          comma-separated extensions to match, e.g. "pdf,docx"
+  --name string         only files whose name contains this text
+  --min-size string     only files at least this size, e.g. "100MB", "1.5GiB"
+  --max-size string     only files at most this size
+  --format string       output format: text|json (default "text")
+  --out string          write results to file instead of stdout
+  --all                 include dotfiles and noise dirs
+```
+
+```bash
+# Every PDF and Word doc, full paths, grouped by type
+falafal find ~/Downloads --ext pdf,docx
+
+# Everything over 500MB, exported to JSON
+falafal find ~/Downloads --min-size 500MB --format json --out big-files.json
+
+# Anything with "invoice" in the name
+falafal find ~/Downloads --name invoice
+```
+
+### `falafal search` — find a file by name
+
+```
+falafal search <path> <query> [flags]
+
+  --format string    output format: text|json (default "text")
+  --out string       write results to file instead of stdout
+  --all              include dotfiles and noise dirs
+```
+
+All words in the query must appear somewhere in a file's name (in any order,
+case-insensitive) — you don't need the exact title:
+
+```bash
+falafal search ~/Downloads "graphs report"
+falafal search ~/Downloads final draft --format json --out matches.json
+```
+
+### `falafal index` — build a reusable name index
+
+Builds an inverted index (name word → file paths) for a folder and prints it
+as JSON — useful for scripting, or feeding into another tool. For one-off
+interactive lookups, use `falafal search` instead.
+
+```
+falafal index <path> [flags]
+
+  --out string    write index JSON to file instead of stdout
+  --all           include dotfiles and noise dirs
+```
+
+```bash
+falafal index ~/Downloads --out index.json
+```
+
+### `falafal grep` — search file contents (like `grep -r`)
+
+```
+falafal grep <path> <pattern> [flags]
+
+  --ignore-case, -i    case-insensitive match
+  --fixed, -F           treat pattern as a literal string, not a regex
+  --ext string          only search files with these extensions, e.g. "go,py"
+  --max-size string     skip files larger than this (default 50MiB)
+  --format string       output format: text|json (default "text")
+  --out string          write results to file instead of stdout
+  --all                 include dotfiles and noise dirs
+```
+
+`<pattern>` is a regular expression by default (Go's `regexp` syntax, similar
+to `egrep`); pass `--fixed`/`-F` to match it literally instead. Files that
+look binary (a null byte in their first line) are skipped automatically, and
+matches print as `path:line:text`, like `grep -rn`.
+
+```bash
+# All TODO/FIXME comments in Go and Python files
+falafal grep ~/project "TODO|FIXME" --ext go,py
+
+# Case-insensitive test function names
+falafal grep ~/project "func Test.*Error" -i
+
+# Literal string match, exported as JSON
+falafal grep ~/project "api.github.com" -F --format json --out matches.json
+```
+
+### `falafal patterns` — detect naming patterns and group matching files
+
+If a folder is full of files like `Aryan_BE_2607.pdf`, `Aryan_FE_2607.pdf`,
+`Aryan_BE_2609.pdf`, `Rahul_CS_1001.pdf`, `Rahul_CS_1002.pdf`, this finds the
+naming templates automatically and groups the files that follow each one —
+here, `Aryan_{1}_{2}.pdf` (3 files) and `Rahul_CS_{1}.pdf` (2 files) — along
+with the actual values each file has for the varying parts.
+
+```
+falafal patterns <path> [flags]
+
+  --min-group int      minimum files sharing a template to report it (default 2)
+  --format string      output format: text|json (default "text")
+  --out string         write results to file instead of stdout
+  --all                include dotfiles and noise dirs
+```
+
+```bash
+falafal patterns ~/Downloads
+falafal patterns ~/Downloads --min-group 3
+falafal patterns ~/Downloads --format json --out patterns.json
+```
+
+Detection works per file extension: names are split into runs of letters,
+digits, and separators (`_`, `-`, space, `.`); files whose separators and
+segment structure match exactly are candidates for the same template, and
+whichever segments actually differ (the "obvious" varying parts) become
+`{1}`, `{2}`, ... placeholders. It automatically finds the most specific
+template that still covers at least `--min-group` files — favoring
+`Rahul_CS_{1}.pdf` over a vaguer `{1}_{2}_{3}.pdf` when the data supports it.
+Files with an identical name (no varying segment) aren't reported here —
+that's exact duplication, already covered by duplicate detection.
 
 ## Google Drive
 
